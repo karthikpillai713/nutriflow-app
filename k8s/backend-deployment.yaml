@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nutriflow-backend
+  namespace: nutriflow
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nutriflow-backend
+  template:
+    metadata:
+      labels:
+        app: nutriflow-backend
+    spec:
+      containers:
+        - name: backend
+          image: 879786010528.dkr.ecr.us-east-1.amazonaws.com/nutriflow-backend:latest
+          ports:
+            - containerPort: 8000
+          env:
+            - name: MONGO_URI
+              valueFrom:
+                secretKeyRef:
+                  name: nutriflow-secret
+                  key: MONGO_URI
+
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: nutriflow-secret
+                  key: JWT_SECRET
+
+            - name: GEMINI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: nutriflow-secret
+                  key: GEMINI_API_KEY
+
+            - name: MESSAGECENTRAL_CUSTOMER_ID
+              valueFrom:
+                secretKeyRef:
+                  name: nutriflow-secret
+                  key: MESSAGECENTRAL_CUSTOMER_ID
+
+            - name: MESSAGECENTRAL_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: nutriflow-secret
+                  key: MESSAGECENTRAL_AUTH_TOKEN
+
+            - name: PORT
+              value: "8000"
+
+            - name: KITCHEN_LAT
+              value: "9.9816"
+
+            - name: KITCHEN_LNG
+              value: "76.2999"
