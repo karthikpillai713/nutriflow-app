@@ -8,8 +8,8 @@ pipeline {
         FRONTEND_ECR = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/nutriflow-frontend"
         BACKEND_ECR = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/nutriflow-backend"
 
-        EKS_CLUSTER = 'nutriflow-cluster'
-        K8S_NAMESPACE = 'nutriflow'
+        BACKEND_URL = 'http://a8bc232085aab4f68ad617173d1bf692-49272255.us-east-1.elb.amazonaws.com:8000/nutriflow'
+
     }
 
     stages {
@@ -24,7 +24,7 @@ pipeline {
             steps {
                 sh '''
                     docker build \
-                      -t nutriflow-backend:latest \
+                      -t nutriflow-backend:${BUILD_NUMBER} \
                       ./backend
                 '''
             }
@@ -34,8 +34,8 @@ pipeline {
             steps {
                 sh '''
                     docker build \
-                      --build-arg VITE_API_URL=http://ac4d637ac01aa418396afc36e5c31648-200224050.us-east-1.elb.amazonaws.com:8000/nutriflow \
-                      -t nutriflow-frontend:latest \
+                      --build-arg VITE_API_URL=$BACKEND_URL \
+                      -t nutriflow-frontend:${BUILD_NUMBER} \
                       ./frontend
                 '''
             }
@@ -59,39 +59,46 @@ pipeline {
         stage('Push Images') {
             steps {
                 sh '''
-                    docker tag nutriflow-backend:latest $BACKEND_ECR:latest
-                    docker tag nutriflow-frontend:latest $FRONTEND_ECR:latest
+                    docker tag nutriflow-backend:${BUILD_NUMBER} \
+                      $BACKEND_ECR:${BUILD_NUMBER}
 
-                    docker push $BACKEND_ECR:latest
-                    docker push $FRONTEND_ECR:latest
+                    docker tag nutriflow-frontend:${BUILD_NUMBER} \
+                      $FRONTEND_ECR:${BUILD_NUMBER}
+
+                    docker push $BACKEND_ECR:${BUILD_NUMBER}
+                    docker push $FRONTEND_ECR:${BUILD_NUMBER}
                 '''
             }
         }
 
-        stage('Deploy to EKS') {
+        stage('Update GitOps Manifests') {
             steps {
                 withCredentials([
-                    [$class: 'AmazonWebServicesCredentialsBinding',
-                     credentialsId: 'aws-credentials']
+                    usernamePassword(
+                        credentialsId: 'github',
+                        usernameVariable: 'GIT_USERNAME',
+                        passwordVariable: 'GIT_TOKEN'
+                    )
                 ]) {
                     sh '''
-                        aws eks update-kubeconfig \
-                          --region $AWS_REGION \
-                          --name $EKS_CLUSTER
+                        git config user.name "Jenkins"
+                        git config user.email "jenkins@nutriflow.local"
 
-                        kubectl set image deployment/nutriflow-backend \
-                          backend=$BACKEND_ECR:latest \
-                          -n $K8S_NAMESPACE
+                        sed -i "s|nutriflow-backend:latest|nutriflow-backend:${BUILD_NUMBER}|g" \
+                          k8s/backend/backend-deployment.yaml
 
-                        kubectl set image deployment/nutriflow-frontend \
-                          frontend=$FRONTEND_ECR:latest \
-                          -n $K8S_NAMESPACE
+                        sed -i "s|nutriflow-frontend:latest|nutriflow-frontend:${BUILD_NUMBER}|g" \
+                          k8s/frontend/frontend-deployment.yaml
 
-                        kubectl rollout status deployment/nutriflow-backend \
-                          -n $K8S_NAMESPACE
+                        git add k8s/backend/backend-deployment.yaml \
+                                k8s/frontend/frontend-deployment.yaml
 
-                        kubectl rollout status deployment/nutriflow-frontend \
-                          -n $K8S_NAMESPACE
+                        git commit -m "Update NutriFlow images to build ${BUILD_NUMBER}" || true
+
+                        git remote set-url origin \
+                          https://${GIT_USERNAME}:${GIT_TOKEN}@github.com/karthikpillai713/nutriflow-app.git
+
+                        git push origin HEAD:main
                     '''
                 }
             }
