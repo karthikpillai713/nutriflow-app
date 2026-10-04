@@ -9,7 +9,7 @@ spec:
   source:
     repoURL: https://github.com/karthikpillai713/nutriflow-app.git
     targetRevision: main
-    path: k8s/backend
+    path: k8s
 
   destination:
     server: https://kubernetes.default.svc
