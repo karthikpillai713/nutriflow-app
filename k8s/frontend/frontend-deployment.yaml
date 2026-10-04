@@ -15,6 +15,6 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: 879786010528.dkr.ecr.us-east-1.amazonaws.com/nutriflow-frontend:latest
+          image: 879786010528.dkr.ecr.us-east-1.amazonaws.com/nutriflow-frontend:2
           ports:
             - containerPort: 80

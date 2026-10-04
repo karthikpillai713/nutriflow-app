@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: backend
-          image: 879786010528.dkr.ecr.us-east-1.amazonaws.com/nutriflow-backend:latest
+          image: 879786010528.dkr.ecr.us-east-1.amazonaws.com/nutriflow-backend:2
           ports:
             - containerPort: 8000
           env:
